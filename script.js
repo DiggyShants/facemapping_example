@@ -1,9 +1,22 @@
-let faceMesh;
-let video;
-let faces = [];
+let faceMesh, video, faces = [];
 let isLoaded = false;
 let showMesh = true;
-let activeOverlays = { eyes: false, nose: false, mouth: false };
+
+// Feature storage
+let activeFeatures = { eyes: null, nose: null, mouth: null };
+let eyeImgs = [], noseImgs = [], mouthImgs = [];
+
+// Configuration - Update these numbers based on how many images you make!
+const EYE_COUNT = 4; 
+const NOSE_COUNT = 3;
+const MOUTH_COUNT = 3;
+
+function preload() {
+    // Load images from your /assets/ folder
+    for (let i = 0; i < EYE_COUNT; i++) eyeImgs.push(loadImage(`assets/eye${i}.png`));
+    for (let i = 0; i < NOSE_COUNT; i++) noseImgs.push(loadImage(`assets/nose${i}.png`));
+    for (let i = 0; i < MOUTH_COUNT; i++) mouthImgs.push(loadImage(`assets/mouth${i}.png`));
+}
 
 function setup() {
     let canvas = createCanvas(640, 480);
@@ -11,100 +24,69 @@ function setup() {
 }
 
 window.initCamera = function() {
-    updateStatus("Requesting Camera...");
     document.getElementById('start-btn').style.display = 'none';
-
-    // We create the capture and wait for it to be ready
-    video = createCapture(VIDEO, (stream) => {
-        updateStatus("Stream active. Preparing AI...");
-        
-        // ML5 v1.x Initialization
-        // We pass the video and an empty options object {} to avoid the 'multiple options' error
+    video = createCapture(VIDEO, () => {
         faceMesh = ml5.faceMesh(video, {}, () => {
-            updateStatus("AI Ready! Start moving.");
             isLoaded = true;
-            
-            // Only start detecting once the model and video are both confirmed
-            faceMesh.detectStart(video, (results) => {
-                faces = results;
-            });
+            faceMesh.detectStart(video, (results) => { faces = results; });
         });
     });
-    
     video.size(640, 480);
     video.hide();
 };
 
-function updateStatus(msg) {
-    const statusEl = document.getElementById('debug-log');
-    if(statusEl) statusEl.innerText = "System: " + msg;
-    console.log("Deepfake Lab: " + msg);
-}
-
-// Window functions for buttons
-window.toggleFeature = function(f) {
-    if(f === 'mesh') showMesh = !showMesh;
-    updateStatus("Mesh: " + (showMesh ? "Visible" : "Hidden"));
+// Randomizer Functions for Buttons
+window.setOverlay = function(type) {
+    if (type === 'eyes') activeFeatures.eyes = random(eyeImgs);
+    if (type === 'nose') activeFeatures.nose = random(noseImgs);
+    if (type === 'mouth') activeFeatures.mouth = random(mouthImgs);
 };
 
-window.setOverlay = function(t) {
-    activeOverlays[t] = !activeOverlays[t];
-    updateStatus("Toggled: " + t);
-};
+window.toggleFeature = function(f) { if(f === 'mesh') showMesh = !showMesh; };
 
 window.resetOverlays = function() {
-    activeOverlays = { eyes:false, nose:false, mouth:false };
-    showMesh = true;
-    updateStatus("Reset All");
+    activeFeatures = { eyes: null, nose: null, mouth: null };
 };
 
 function draw() {
-    // Only draw if the camera and AI are ready
-    if (!isLoaded || !video) {
-        background(0);
-        return;
-    }
-
-    // Mirror the video
-    translate(width, 0);
-    scale(-1, 1);
+    if (!isLoaded) return;
+    translate(width, 0); scale(-1, 1);
     image(video, 0, 0, width, height);
 
     if (faces && faces.length > 0) {
         let face = faces[0];
         
-        if (showMesh) drawMesh(face);
+        if (showMesh) drawDeepfakeMesh(face);
         
-        // Draw features based on keypoints
-        if (activeOverlays.eyes) drawEyes(face.keypoints[159], face.keypoints[386]);
-        if (activeOverlays.nose) drawNose(face.keypoints[1]);
-        if (activeOverlays.mouth) drawMouth(face.keypoints[13]);
+        // Render Random Images
+        if (activeFeatures.eyes) {
+            drawFeature(activeFeatures.eyes, face.keypoints[159], 150); // Left
+            drawFeature(activeFeatures.eyes, face.keypoints[386], 150); // Right
+        }
+        if (activeFeatures.nose) drawFeature(activeFeatures.nose, face.keypoints[1], 100);
+        if (activeFeatures.mouth) drawFeature(activeFeatures.mouth, face.keypoints[13], 150);
     }
 }
 
-function drawMesh(face) {
-    fill(0, 255, 0);
-    noStroke();
-    // Use the actual keypoints array from v1.x
-    if (face.keypoints) {
-        face.keypoints.forEach((kp, i) => {
-            if (i % 6 === 0) ellipse(kp.x, kp.y, 4, 4);
-        });
+function drawDeepfakeMesh(face) {
+    stroke(0, 255, 0, 100); // Semi-transparent green
+    strokeWeight(1);
+    noFill();
+    // This draws triangles between points to show the "topology"
+    for (let i = 0; i < face.keypoints.length; i += 10) {
+        beginShape(TRIANGLE_STRIP);
+        for(let j = 0; j < 3; j++) {
+            let pt = face.keypoints[(i+j) % face.keypoints.length];
+            vertex(pt.x, pt.y);
+        }
+        endShape();
     }
 }
 
-function drawEyes(l, r) {
-    fill(255); stroke(0); strokeWeight(2);
-    ellipse(l.x, l.y, 45, 35); ellipse(r.x, r.y, 45, 35);
-    fill(0); ellipse(l.x, l.y, 15, 15); ellipse(r.x, r.y, 15, 15);
-}
-
-function drawNose(kp) {
-    fill(255, 0, 0); noStroke();
-    ellipse(kp.x, kp.y, 40, 40);
-}
-
-function drawMouth(kp) {
-    noFill(); stroke(255, 204, 0); strokeWeight(10);
-    arc(kp.x, kp.y, 80, 50, 0, PI);
+function drawFeature(img, kp, size) {
+    push();
+    imageMode(CENTER);
+    // Draw the image at the landmark coordinate
+    image(img, kp.x, kp.y, size, size);
+    pop();
 }
