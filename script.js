@@ -1,92 +1,85 @@
-let faceMesh, video, faces = [];
-let isLoaded = false;
+const videoElement = document.getElementsByClassName('input_video')[0];
+const canvasElement = document.getElementsByClassName('output_canvas')[0];
+const canvasCtx = canvasElement.getContext('2d');
+
 let showMesh = true;
-
-// Feature storage
 let activeFeatures = { eyes: null, nose: null, mouth: null };
-let eyeImgs = [], noseImgs = [], mouthImgs = [];
+let isLoaded = false;
 
-// Configuration - Update these numbers based on how many images you make!
-const EYE_COUNT = 3; 
-const NOSE_COUNT = 3;
-const MOUTH_COUNT = 3;
+// Preload your images (ensure they are in your GitHub /assets/ folder)
+const eyeImg = new Image(); eyeImg.src = "assets/eye0.png";
+const noseImg = new Image(); noseImg.src = "assets/nose0.png";
+const mouthImg = new Image(); mouthImg.src = "assets/mouth0.png";
 
-function preload() {
-    // Load images from your /assets/ folder
-    for (let i = 0; i < EYE_COUNT; i++) eyeImgs.push(loadImage(`assets/eye${i}.png`));
-    for (let i = 0; i < NOSE_COUNT; i++) noseImgs.push(loadImage(`assets/nose${i}.png`));
-    for (let i = 0; i < MOUTH_COUNT; i++) mouthImgs.push(loadImage(`assets/mouth${i}.png`));
+function onResults(results) {
+    canvasCtx.save();
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    
+    // Draw mirrored video
+    canvasCtx.translate(canvasElement.width, 0);
+    canvasCtx.scale(-1, 1);
+    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+    if (results.multiFaceLandmarks) {
+        for (const landmarks of results.multiFaceLandmarks) {
+            
+            // 1. Draw Professional Wireframe
+            if (showMesh) {
+                // FACEMESH_TESSELATION is the "mesh" look you preferred
+                drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, 
+                              {color: '#00FF0070', lineWidth: 1});
+            }
+
+            // 2. Dynamic Feature Resizing
+            if (activeFeatures.eyes) {
+                // Distance between landmark 33 and 133 gives eye width
+                let eyeWidth = getDistance(landmarks[33], landmarks[133]) * canvasElement.width * 2.5;
+                drawFeature(eyeImg, landmarks[159], eyeWidth); // Left
+                drawFeature(eyeImg, landmarks[386], eyeWidth); // Right
+            }
+            
+            if (activeFeatures.nose) {
+                // Distance between nostrils gives nose width
+                let noseWidth = getDistance(landmarks[61], landmarks[291]) * canvasElement.width * 0.8;
+                drawFeature(noseImg, landmarks[1], noseWidth);
+            }
+        }
+    }
+    canvasCtx.restore();
 }
 
-function setup() {
-    let canvas = createCanvas(640, 480);
-    canvas.parent('canvas-container');
+// Math helper to calculate size based on landmarks
+function getDistance(p1, p2) {
+    return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 }
 
-window.initCamera = function() {
-    document.getElementById('start-btn').style.display = 'none';
-    video = createCapture(VIDEO, () => {
-        faceMesh = ml5.faceMesh(video, {}, () => {
-            isLoaded = true;
-            faceMesh.detectStart(video, (results) => { faces = results; });
-        });
+function drawFeature(img, landmark, size) {
+    const x = landmark.x * canvasElement.width;
+    const y = landmark.y * canvasElement.height;
+    canvasCtx.drawImage(img, x - size/2, y - size/2, size, size);
+}
+
+// Initialization
+const faceMesh = new FaceMesh({locateFile: (file) => {
+    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+}});
+
+faceMesh.setOptions({
+    maxNumFaces: 1,
+    refineLandmarks: true,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+});
+faceMesh.onResults(onResults);
+
+window.startAdvancedCamera = function() {
+    const camera = new Camera(videoElement, {
+        onFrame: async () => { await faceMesh.send({image: videoElement}); },
+        width: 640, height: 480
     });
-    video.size(640, 480);
-    video.hide();
+    camera.start();
+    document.getElementById('start-btn').style.display = 'none';
 };
 
-// Randomizer Functions for Buttons
-window.setOverlay = function(type) {
-    if (type === 'eyes') activeFeatures.eyes = random(eyeImgs);
-    if (type === 'nose') activeFeatures.nose = random(noseImgs);
-    if (type === 'mouth') activeFeatures.mouth = random(mouthImgs);
-};
-
-window.toggleFeature = function(f) { if(f === 'mesh') showMesh = !showMesh; };
-
-window.resetOverlays = function() {
-    activeFeatures = { eyes: null, nose: null, mouth: null };
-};
-
-function draw() {
-    if (!isLoaded) return;
-    translate(width, 0); scale(-1, 1);
-    image(video, 0, 0, width, height);
-
-    if (faces && faces.length > 0) {
-        let face = faces[0];
-        
-        if (showMesh) drawDeepfakeMesh(face);
-        
-        // Render Random Images
-        if (activeFeatures.eyes) {
-            drawFeature(activeFeatures.eyes, face.keypoints[159], 150); // Left
-            drawFeature(activeFeatures.eyes, face.keypoints[386], 150); // Right
-        }
-        if (activeFeatures.nose) drawFeature(activeFeatures.nose, face.keypoints[1], 100);
-        if (activeFeatures.mouth) drawFeature(activeFeatures.mouth, face.keypoints[13], 150);
-    }
-}
-
-function drawDeepfakeMesh(face) {
-    stroke(0, 255, 0, 100); // Semi-transparent green
-    strokeWeight(1);
-    noFill();
-    // This draws triangles between points to show the "topology"
-    for (let i = 0; i < face.keypoints.length; i += 10) {
-        beginShape(TRIANGLE_STRIP);
-        for(let j = 0; j < 3; j++) {
-            let pt = face.keypoints[(i+j) % face.keypoints.length];
-            vertex(pt.x, pt.y);
-        }
-        endShape();
-    }
-}
-
-function drawFeature(img, kp, size) {
-    push();
-    imageMode(CENTER);
-    // Draw the image at the landmark coordinate
-    image(img, kp.x, kp.y, size, size);
-    pop();
-}
+window.toggleFeature = (f) => { if(f === 'mesh') showMesh = !showMesh; };
+window.setOverlay = (t) => { activeFeatures[t] = !activeFeatures[t]; };
