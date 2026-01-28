@@ -1,58 +1,10 @@
-body {
-    font-family: 'Segoe UI', sans-serif;
-    text-align: center;
-    background: #f0f2f5;
-    margin: 0;
-    padding: 20px;
-}
-
-.container {
-    max-width: 700px;
-    margin: auto;
-}
-
-#canvas-container {
-    position: relative;
-    display: inline-block;
-    border: 5px solid #34495e;
-    border-radius: 10px;
-    background: #000;
-    width: 640px;
-    height: 480px;
-}
-
-#start-btn {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 10;
-    padding: 15px 30px;
-    background: #2ecc71;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-size: 1.2em;
-    cursor: pointer;
-}
-
-.controls {
-    margin-top: 15px;
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-button {
-    padding: 10px 15px;
-    cursor: pointer;
-    border: none;
-    border-radius: 5px;
-    background: #3498db;
-    color: white;
-    font-weight: bold;
-}
-
-.reset-btn { background: #95a5a6; }
-.status { margin-top: 10px; font-style: italic; color: #e67e22; }
+body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #f4f7f6; margin: 0; padding: 10px; }
+.container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 12px; }
+#canvas-container { position: relative; display: inline-block; border: 4px solid #2c3e50; background: #000; width: 640px; height: 480px; }
+#start-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; background: #27ae60; color: white; border: none; cursor: pointer; font-size: 1.2rem; border-radius: 8px; }
+.control-panel { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; align-items: center; }
+.button-group { display: flex; gap: 10px; align-items: center; }
+button { padding: 10px 15px; border: none; border-radius: 4px; background: #3498db; color: white; cursor: pointer; font-weight: 600; }
+button.active { background: #e67e22; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+.reset-btn { background: #95a5a6; margin-top: 10px; }
+.status { color: #7f8c8d; font-family: monospace; font-size: 0.9rem; margin: 10px 0; }
