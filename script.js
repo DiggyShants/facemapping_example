@@ -8,22 +8,22 @@ function setup() {
     canvas.parent('canvas-container');
 }
 
+// Make globally accessible for the HTML buttons
 window.initCamera = async function() {
     updateStatus("Requesting Camera Permissions...");
     document.getElementById('start-btn').style.display = 'none';
     
-    // In ml5 v1.x, the callback receives 'results' directly
     video = createCapture(VIDEO, () => {
-        updateStatus("Camera Active. Loading Face Model...");
+        updateStatus("Camera Active. Loading AI Model...");
         
-        // ML5 NEXT GEN SYNTAX
-        faceMesh = ml5.faceMesh(video, { maxFaces: 1 }, (results) => {
+        // ML5 NEXT GEN SYNTAX: 
+        // We initialize faceMesh and then use detectStart to begin the loop
+        faceMesh = ml5.faceMesh(video, { maxFaces: 1 }, () => {
             updateStatus("AI Ready! Features Unlocked.");
-            faces = results; // Set initial results
             isLoaded = true;
         });
 
-        // The listener for new data in v1.x is detectStart
+        // The 'detectStart' method is what replaces the old '.on' syntax
         faceMesh.detectStart(video, (results) => {
             faces = results;
         });
@@ -52,7 +52,7 @@ window.resetOverlays = function() {
     updateStatus("All features cleared.");
 };
 
-// Renamed from 'log' to 'updateStatus' to avoid p5.js conflict
+// Renamed to 'updateStatus' to avoid p5.js 'log' conflict
 function updateStatus(msg) {
     const statusEl = document.getElementById('debug-log');
     if(statusEl) statusEl.innerText = "System: " + msg;
@@ -62,7 +62,7 @@ function updateStatus(msg) {
 function draw() {
     if (!isLoaded) return;
     
-    // Mirror the view for a natural feel
+    // Mirror the view
     translate(width, 0);
     scale(-1, 1);
     image(video, 0, 0, width, height);
@@ -72,7 +72,7 @@ function draw() {
         
         if (showMesh) drawMesh(face);
         
-        // Keypoints in ml5 v1.x are accessed directly via index
+        // Landmark indexing for ml5 v1.x
         if (activeOverlays.eyes) drawCartoonEyes(face.keypoints[159], face.keypoints[386]);
         if (activeOverlays.nose) drawCartoonNose(face.keypoints[1]);
         if (activeOverlays.mouth) drawCartoonMouth(face.keypoints[13]);
@@ -82,10 +82,9 @@ function draw() {
 function drawMesh(face) {
     fill(0, 255, 0); 
     noStroke();
-    // Loop through all 468+ points
     for (let i = 0; i < face.keypoints.length; i++) {
         let kp = face.keypoints[i];
-        if (i % 5 === 0) { // Only draw every 5th point so it's not too crowded
+        if (i % 8 === 0) { // Drawing every 8th point for a clean "map" look
             ellipse(kp.x, kp.y, 3, 3);
         }
     }
@@ -105,7 +104,6 @@ function drawCartoonNose(kp) {
 
 function drawCartoonMouth(kp) {
     push(); noFill(); stroke(255, 204, 0); strokeWeight(12); 
-    // Draw the arc based on the mouth keypoint
     arc(kp.x, kp.y, 70, 50, 0, PI); 
     pop();
 }
