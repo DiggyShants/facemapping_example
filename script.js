@@ -7,7 +7,7 @@ let activeFeatures = { eyes: null, nose: null, mouth: null };
 let eyeImgs = [], noseImgs = [], mouthImgs = [];
 
 // Configuration - Update these numbers based on how many images you make!
-const EYE_COUNT = 4; 
+const EYE_COUNT = 3; 
 const NOSE_COUNT = 3;
 const MOUTH_COUNT = 3;
 
